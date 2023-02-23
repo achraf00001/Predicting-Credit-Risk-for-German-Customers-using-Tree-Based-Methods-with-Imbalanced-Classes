@@ -1,0 +1,130 @@
+---
+title: "Project 3"
+author: "Achraf cherkaoui"
+#date: "Oct 24, 2021"
+output: 
+  pdf_document:
+    keep_tex: yes  
+header-includes:
+  - \usepackage{color}  
+urlcolor: blue  
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+We will use the `College` data set in the package `ISLR`. It will be a objective-oriented project. The questions are modified based on \# 9 on page 263. 
+
+The college data set contains information of 777 US college and university with 18 variables. We will use `Apps` as our response $y$. And we would like to consider both prediction and inference.
+
+Please plug in your own R code chunks. 
+
+## Linar model selection and regularization
+
+\# 9 (pg 263) We will predict the number of applications received ($y$) using the other variables in the `College` data set. 
+
+\textcolor{black}{(a) Split the data into a training set and a test set.}
+```{r, echo=TRUE,warning=FALSE,message=FALSE, eval=TRUE}
+library(ISLR)
+library(glmnet)
+set.seed(1)
+train = sample(length(College$Apps), length(College$Apps)/2)
+test = - train
+#train = College[train.rows, ]
+#test = College[test.rows, ]
+X <- model.matrix(Apps~.,College)[,-1]
+Y <- College$Apps
+y.test<- Y[test]
+```
+
+
+**\color{red}{Question}**  (b). Ridge regression (hint: refer to the lab on lecture notes from page 22 to page 25)
+
+ * Use \texttt{cv.glmnet()} to fit ridge regression models on the training set.
+ 
+ * Make the plot for $\lambda$ (or $\log(\lambda)$) versus Mean-squared Error. Also, make the plot for $\lambda$ (or  $\log(\lambda)$) \textcolor{red}{($x$-axis)} versus coefficient estimates \textcolor{red}{($y$-axis)}. Also
+ 
+ 
+ * Find the best $\lambda$ based on the  cross-validation performed by \texttt{cv.glmnet()}, and show the value of the best $\lambda$. 
+
+ 
+ * Make prediction on the test set using the ridge regression with the best $\lambda$, report the test error. 
+
+```{r , echo=TRUE,warning=FALSE,message=FALSE, eval=TRUE} 
+set.seed(1)
+cv.out <- cv.glmnet(X[train,],Y[train],alpha=0)
+plot(cv.out)
+plot(cv.out$glmnet.fit, xvar="lambda") 
+bestlambda <- cv.out$lambda.min 
+bestlambda
+ridge.pred <- predict(cv.out,s=bestlambda,newx=X[test,])
+mean((ridge.pred-y.test)^2) 
+```
+
+**\color{red}{Question}** (c). Lasso regression (hint: refer to the lab on lecture notes from page 22 to page 25)
+
+ * Use \texttt{cv.glmnet()} to fit Lasso regression models on the training set. 
+
+ * Make the plot for $\lambda$ (or $\log(\lambda)$) versus Mean-squared Error. Also, make the plot for $\lambda$ (or  $\log(\lambda)$) \textcolor{red}{($x$-axis)} versus coefficient estimates \textcolor{red}{($y$-axis)}.
+ 
+ * Find the best $\lambda$ based on the  cross-validation performed by \texttt{cv.glmnet()}, and show the value of the best $\lambda$. 
+ 
+ 
+ * Make prediction on the test set using the lasso regression with the best $\lambda$, report the test error. 
+
+ * Re-fit the Lasso using the best selected $\lambda$ for the whole data and show the predicted coefficient estimates.
+  
+ * From Lasso regression, what are the most important predictors (whose coefficients are NOT forced to be 0) for Apps for US colleges and universities? Do they positively or negatively explain the response?
+```{r ,echo=TRUE,warning=FALSE,message=FALSE, eval=TRUE}
+set.seed(1)
+cv.outL <- cv.glmnet(X[train,],Y[train],alpha=1)
+plot(cv.outL)
+plot(cv.outL$glmnet.fit, xvar="lambda") 
+bestlambda <- cv.outL$lambda.min
+bestlambda
+lasso.pred <- predict(cv.outL,s=bestlambda,newx=X[test,])
+mean((lasso.pred-y.test)^2)
+out <- glmnet(X,Y,alpha=1)
+predict(out,type="coefficients",s= bestlambda)
+```
+**\color{green}{answer}**:The most important predictors are PrivateYes,accept, Top10perc ,Top25perc , PHD,Terminal , S.F.Ratio , Grad.Rate. these predictors negatively explain the response because  most of coefficients are negative and with a big negative value. 
+
+
+**\color{red}{Question}** (d). PCR model. (hint: refer to the lab on lecture notes from page 29 to page 33)
+
+ * Use \texttt{pcr()} in the \texttt{pls()} package to fit PCR models on the training set using cross-validation. \textcolor{red}{Show the summary.}
+ 
+ * Find the best $M$ chosen by cross-validation. 
+
+ * Show the plot for the number of components versus validation MSE.
+ 
+ * Make prediction on the test set using the best $M$, and  report the test error obtained.
+
+```{r,echo=TRUE,warning=FALSE,message=FALSE, eval=TRUE}
+library(pls)
+set.seed(1)
+pcr.fit=pcr(Apps ~., data= College,scale=TRUE,validation="CV") 
+summary(pcr.fit)
+validationplot(pcr.fit,val.type="RMSEP") 
+pcr.pred=predict(pcr.fit,X[test,],ncomp=17)# predict on test data
+mean((pcr.pred-y.test)^2) # calculate the test MSE
+
+```
+**\color{green}{Answer}** : The best M is 17.
+
+**\color{red}{Question}** (e). (**Bonus**) Repeat steps in (d) for the PLS method. (hint: refer to the lab on lecture notes from page 29 to page 33)
+```{r,echo=TRUE,warning=FALSE,message=FALSE, eval=TRUE}
+set.seed(1)
+pls.fit=plsr(Apps~., data=College,scale=TRUE,validation="CV")
+summary(pls.fit)
+validationplot(pls.fit,val.type="RMSEP") 
+pls.pred=predict(pls.fit,X[test,],ncomp = 6)# predict on test data. Best M=6
+mean((pls.pred-y.test)^2) # calculate the test MSE
+```
+**\color{green}{Answer}** : The best M is 6. 
+
+**\color{red}{Question}** (f). Comment on the results obtained: is there much difference among the test errors resulting from these three (or four if you work on (e)) approaches? Or which is the best method for the data?
+
+**\color{green}{Answer}**: Lasso regression has the biggest test error .Yet, there is no big difference between the test errors obtained from Ridge regression , PLS, PCR .since the principal component analysis regression (PCAR) tent to have the smallest test error therefore it is going to be the best model for the data. 
